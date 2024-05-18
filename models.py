@@ -14,6 +14,7 @@ class FormData(Base):
     id = Column(String, primary_key=True, index=True)
     name = Column(String)
     email = Column(String)
+    mobile = Column(String)
 
 Base.metadata.create_all(bind=engine)
 
