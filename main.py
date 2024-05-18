@@ -31,6 +31,9 @@ html = """
             <label for="email">Email:</label><br>
             <input type="email" id="email" name="email"><br>
             <span id="emailEditor"></span><br>
+            <label for="mobile">Mobile:</label><br>
+            <input type="mobile" id="mobile" name="mobile"><br>
+            <span id="mobileEditor"></span><br>
         </form>
         <div id="userList"></div>
         <script>
@@ -61,7 +64,7 @@ html = """
             function connectToForm(formId, userId) {
                 const form = document.getElementById('collabForm');
                 form.style.display = 'block';
-                const ws = new WebSocket(`wss://${location.host}/ws/${formId}/${userId}`);
+                const ws = new WebSocket(`ws://${location.host}/ws/${formId}/${userId}`);
 
                 let editingField = null;
 
@@ -207,12 +210,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str, d
                 else:
                     form_entry.name = form_data.get('name', form_entry.name)
                     form_entry.email = form_data.get('email', form_entry.email)
+                    form_entry.mobile = form_data.get('mobile', form_entry.mobile)
                 db.commit()
                 await manager.broadcast(room_id, json.dumps(message), sender_id=user_id)
             elif message['type'] == 'fetch_data':
                 form_entry = db.query(FormData).filter(FormData.id == room_id).first()
                 if form_entry:
-                    await websocket.send_text(json.dumps({"type": "update", "payload": {"name": form_entry.name, "email": form_entry.email}}))
+                    await websocket.send_text(json.dumps({"type": "update", "payload": {"name": form_entry.name, "email": form_entry.email, "mobile": form_entry.mobile}}))
             elif message['type'] == 'lock':
                 field = message['payload']['field']
                 if room_id not in manager.locks:
