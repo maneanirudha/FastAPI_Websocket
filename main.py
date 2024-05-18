@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import Dict, List
@@ -203,3 +203,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str, d
     except WebSocketDisconnect:
         manager.disconnect(room_id, user_id)
         await manager.broadcast_user_list(room_id)
+
+@app.get("/form/{form_id}")
+async def read_form_data(form_id: str, db: Session = Depends(get_db)):
+    form_entry = db.query(FormData).filter(FormData.id == form_id).first()
+    if not form_entry:
+        raise HTTPException(status_code=404, detail="Form not found")
+    return form_entry
