@@ -19,6 +19,10 @@ html = """
     </head>
     <body>
         <h1>Real-time Form Collaboration</h1>
+        <label for="userIdInput">Enter your User ID:</label>
+        <input type="text" id="userIdInput" required>
+        <button id="connectForm">Connect</button>
+        <br><br>
         <button id="createForm">Create New Form</button>
         <form id="collabForm" style="display:none;">
             <label for="name">Name:</label><br>
@@ -38,13 +42,26 @@ html = """
                 window.location.href = `/?form=${formId}`;
             };
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const formId = urlParams.get('form');
-            if (formId) {
-                const userId = Math.random().toString(36).substring(2, 15);
+            const connectFormButton = document.getElementById('connectForm');
+            connectFormButton.onclick = function() {
+                const userId = document.getElementById('userIdInput').value.trim();
+                if (!userId) {
+                    alert('Please enter a User ID');
+                    return;
+                }
+                const urlParams = new URLSearchParams(window.location.search);
+                const formId = urlParams.get('form');
+                if (formId) {
+                    connectToForm(formId, userId);
+                } else {
+                    alert('Form ID is missing. Please create or join a form.');
+                }
+            };
+
+            function connectToForm(formId, userId) {
                 const form = document.getElementById('collabForm');
                 form.style.display = 'block';
-                const ws = new WebSocket(`wss://${location.host}/ws/${formId}/${userId}`);
+                const ws = new WebSocket(`ws://${location.host}/ws/${formId}/${userId}`);
 
                 let editingField = null;
 
@@ -99,6 +116,13 @@ html = """
                     ws.send(JSON.stringify({ type: 'fetch_data' }));
                 };
             }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const formId = urlParams.get('form');
+            if (formId) {
+                document.getElementById('connectForm').style.display = 'inline';
+                document.getElementById('userIdInput').style.display = 'inline';
+            }
         </script>
     </body>
 </html>
@@ -107,7 +131,7 @@ html = """
 class ConnectionManager:
     def __init__(self):
         self.rooms: Dict[str, Dict[str, WebSocket]] = {}
-        self.locks: Dict[str, Dict[str, str]] = {}  # room_id -> field -> user_id
+        self.locks: Dict[str, Dict[str, str]] = {}
 
     async def connect(self, websocket: WebSocket, room_id: str, user_id: str):
         await websocket.accept()
@@ -135,7 +159,7 @@ class ConnectionManager:
                 try:
                     await connection.send_text(message)
                 except Exception:
-                    pass  # Handle potential connection issues
+                    pass
 
     async def broadcast_user_list(self, room_id: str):
         user_list = list(self.rooms[room_id].keys())
@@ -197,7 +221,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str, d
                 await manager.broadcast_lock(room_id, field)
             elif message['type'] == 'unlock':
                 field = message['payload']['field']
-                if room_id in manager.locks and field in manager.locks[room_id] and manager.locks[room_id][field] == user_id:
+                if room_id in manager.locks and field in manager.locks[room_id]:
                     del manager.locks[room_id][field]
                     await manager.broadcast_unlock(room_id, field)
     except WebSocketDisconnect:
@@ -205,7 +229,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str, d
         await manager.broadcast_user_list(room_id)
 
 @app.get("/form/{form_id}")
-async def read_form_data(form_id: str, db: Session = Depends(get_db)):
+async def get_form_data(form_id: str, db: Session = Depends(get_db)):
     form_entry = db.query(FormData).filter(FormData.id == form_id).first()
     if not form_entry:
         raise HTTPException(status_code=404, detail="Form not found")
