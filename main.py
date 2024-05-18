@@ -64,7 +64,7 @@ html = """
             function connectToForm(formId, userId) {
                 const form = document.getElementById('collabForm');
                 form.style.display = 'block';
-                const ws = new WebSocket(`ws://${location.host}/ws/${formId}/${userId}`);
+                const ws = new WebSocket(`wss://${location.host}/ws/${formId}/${userId}`);
 
                 let editingField = null;
 
